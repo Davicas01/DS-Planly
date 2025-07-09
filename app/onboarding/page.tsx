@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Target, DollarSign, Heart, Brain, ChevronRight, ChevronLeft, Check, Zap, TrendingUp, Bell } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { setCookie } from "cookies-next"
 
 interface OnboardingData {
   name: string
@@ -68,14 +69,21 @@ export default function OnboardingPage() {
         }),
       )
 
+      // Definir cookie para indicar que o onboarding foi completado
+      setCookie('planly_onboarding_completed', 'true', {
+        maxAge: 60 * 60 * 24 * 365, // 1 ano
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax'
+      })
+
       toast({
         title: "Configuração concluída!",
         description: "Bem-vindo ao Planly. Vamos começar sua jornada!",
       })
 
-      setTimeout(() => {
-        router.push("/dashboard")
-      }, 1000)
+      // Redirecionar imediatamente para o dashboard
+      router.push("/dashboard")
     } catch (error) {
       toast({
         title: "Erro na configuração",

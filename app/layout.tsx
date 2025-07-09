@@ -1,9 +1,10 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
+import { AuthProvider } from "@/contexts/auth-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -12,8 +13,6 @@ export const metadata: Metadata = {
   description:
     "Super app PWA de organização pessoal que unifica hábitos, finanças, saúde e bem-estar em uma única plataforma inteligente.",
   manifest: "/manifest.json",
-  themeColor: "#3b82f6",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -27,6 +26,14 @@ export const metadata: Metadata = {
     apple: [{ url: "/icon-192x192.png", sizes: "192x192", type: "image/png" }],
   },
     generator: 'v0.dev'
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#3b82f6'
 }
 
 export default function RootLayout({
@@ -45,10 +52,12 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
       </head>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          {children}
-          <Toaster />
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+            {children}
+            <Toaster />
+          </ThemeProvider>
+        </AuthProvider>
 
         <script
           dangerouslySetInnerHTML={{
@@ -86,9 +95,12 @@ export default function RootLayout({
                 e.preventDefault();
                 deferredPrompt = e;
                 
+                // Check if user has dismissed the install prompt before
+                const installPromptDismissed = localStorage.getItem('planly_install_prompt_dismissed');
+                
                 // Show install button after 30 seconds
                 setTimeout(() => {
-                  if (deferredPrompt && !window.matchMedia('(display-mode: standalone)').matches) {
+                  if (deferredPrompt && !window.matchMedia('(display-mode: standalone)').matches && !installPromptDismissed) {
                     const installBanner = document.createElement('div');
                     installBanner.innerHTML = \`
                       <div style="position: fixed; bottom: 20px; left: 20px; right: 20px; background: linear-gradient(135deg, #3b82f6, #10b981); color: white; padding: 16px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; display: flex; align-items: center; justify-content: space-between;">
@@ -116,6 +128,8 @@ export default function RootLayout({
                     });
                     
                     document.getElementById('dismiss-btn').addEventListener('click', () => {
+                      // Save user preference to not show install prompt again
+                      localStorage.setItem('planly_install_prompt_dismissed', 'true');
                       document.body.removeChild(installBanner);
                     });
                   }

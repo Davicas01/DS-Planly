@@ -19,9 +19,10 @@ import {
   AlertCircle,
 } from "lucide-react"
 import Link from "next/link"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function DashboardPage() {
-  const [userName, setUserName] = useState("Usuário")
+  const { user } = useAuth()
   const [todayHabits, setTodayHabits] = useState([
     { name: "Exercício", completed: true, time: "07:00" },
     { name: "Leitura", completed: true, time: "08:30" },
@@ -30,20 +31,7 @@ export default function DashboardPage() {
     { name: "Estudar", completed: false, time: "19:00" },
   ])
 
-  useEffect(() => {
-    // Get user data from auth
-    const authData = localStorage.getItem("planly_auth")
-    if (authData) {
-      try {
-        const { user } = JSON.parse(authData)
-        if (user && user.name) {
-          setUserName(user.name.split(" ")[0])
-        }
-      } catch (error) {
-        console.error("Error parsing auth data:", error)
-      }
-    }
-  }, [])
+  const userName = user?.displayName?.split(" ")[0] || user?.email?.split("@")[0] || "Usuário"
 
   const getGreeting = () => {
     const hour = new Date().getHours()

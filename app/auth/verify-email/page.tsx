@@ -11,28 +11,50 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft, Mail, Loader2, CheckCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function VerifyEmailPage() {
-  const [verificationCode, setVerificationCode] = useState(["", "", "", "", "", ""])
-  const [isLoading, setIsLoading] = useState(false)
   const [isVerified, setIsVerified] = useState(false)
   const [canResend, setCanResend] = useState(true)
   const [countdown, setCountdown] = useState(0)
-  const [userEmail, setUserEmail] = useState("")
-  const [userName, setUserName] = useState("")
+  const [isResending, setIsResending] = useState(false)
 
   const router = useRouter()
   const { toast } = useToast()
+  const { user, loading, resendEmailVerification } = useAuth()
 
   useEffect(() => {
-    // Get user data from signup
-    const signupData = localStorage.getItem("planly_signup")
-    if (signupData) {
-      const { email, name } = JSON.parse(signupData)
-      setUserEmail(email || "")
-      setUserName(name || "")
+    // Redirect if not authenticated
+    if (!loading && !user) {
+      router.push('/auth/login')
+      return
     }
-  }, [])
+
+    // Redirect if email is already verified
+    if (user && user.emailVerified) {
+      router.push('/onboarding')
+      return
+    }
+
+    // Check email verification status periodically
+    const checkVerification = setInterval(async () => {
+      if (user && user.emailVerified) {
+        setIsVerified(true)
+        clearInterval(checkVerification)
+        
+        toast({
+          title: "Email verificado com sucesso!",
+          description: "Redirecionando para o onboarding...",
+        })
+
+        setTimeout(() => {
+          router.push('/onboarding')
+        }, 2000)
+      }
+    }, 3000)
+
+    return () => clearInterval(checkVerification)
+  }, [user, loading, router, toast])
 
   const startCountdown = () => {
     setCanResend(false)
@@ -50,130 +72,31 @@ export default function VerifyEmailPage() {
     }, 1000)
   }
 
-  const handleInputChange = (index: number, value: string) => {
-    if (value.length > 1) {
-      value = value.slice(0, 1)
-    }
 
-    if (!/^\d*$/.test(value) && value !== "") {
-      return
-    }
 
-    const newCode = [...verificationCode]
-    newCode[index] = value
-    setVerificationCode(newCode)
 
-    // Auto-focus next input
-    if (value !== "" && index < 5) {
-      const nextInput = document.getElementById(`code-${index + 1}`)
-      if (nextInput) {
-        nextInput.focus()
-      }
-    }
-  }
-
-  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace" && verificationCode[index] === "" && index > 0) {
-      const prevInput = document.getElementById(`code-${index - 1}`)
-      if (prevInput) {
-        prevInput.focus()
-      }
-    }
-  }
-
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault()
-    const pastedData = e.clipboardData.getData("text/plain").trim()
-
-    if (!/^\d+$/.test(pastedData)) {
-      return
-    }
-
-    const digits = pastedData.slice(0, 6).split("")
-    const newCode = [...verificationCode]
-
-    digits.forEach((digit, index) => {
-      if (index < 6) {
-        newCode[index] = digit
-      }
-    })
-
-    setVerificationCode(newCode)
-
-    // Focus the next empty input or the last one
-    for (let i = digits.length; i < 6; i++) {
-      const nextInput = document.getElementById(`code-${i}`)
-      if (nextInput) {
-        nextInput.focus()
-        break
-      }
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    const code = verificationCode.join("")
-    if (code.length !== 6) {
-      toast({
-        title: "Código incompleto",
-        description: "Por favor, digite o código de 6 dígitos.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsLoading(true)
-
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      // For demo purposes, any code is valid
-      setIsVerified(true)
-
-      toast({
-        title: "Email verificado com sucesso!",
-        description: "Redirecionando para o onboarding...",
-      })
-
-      setTimeout(() => {
-        router.push("/onboarding")
-      }, 2000)
-    } catch (error) {
-      toast({
-        title: "Erro na verificação",
-        description: "Código inválido ou expirado. Tente novamente.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const handleResend = async () => {
-    if (!canResend) return
+    if (!canResend || !user) return
 
-    setIsLoading(true)
+    setIsResending(true)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
+      await resendEmailVerification()
       startCountdown()
 
       toast({
-        title: "Código reenviado!",
-        description: "Verifique sua caixa de entrada.",
+        title: "Email de verificação reenviado!",
+        description: "Verifique sua caixa de entrada e spam.",
       })
-    } catch (error) {
+    } catch (error: any) {
       toast({
-        title: "Erro ao reenviar código",
-        description: "Tente novamente em alguns instantes.",
+        title: "Erro ao reenviar email",
+        description: error.message || "Tente novamente em alguns instantes.",
         variant: "destructive",
       })
     } finally {
-      setIsLoading(false)
+      setIsResending(false)
     }
   }
 

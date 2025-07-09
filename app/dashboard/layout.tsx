@@ -1,33 +1,25 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { AppSidebar } from "@/components/dashboard/sidebar"
 import { Header } from "@/components/dashboard/header"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const { user, loading } = useAuth()
   const router = useRouter()
 
-  useEffect(() => {
-    // Check if user is authenticated
-    const authData = localStorage.getItem("planly_auth")
+  // Redirect to login if not authenticated
+  if (!loading && !user) {
+    router.push("/auth/login?redirect=/dashboard")
+    return null
+  }
 
-    if (!authData) {
-      router.push("/auth/login?redirect=/dashboard")
-      return
-    }
-
-    setIsAuthenticated(true)
-    setIsLoading(false)
-  }, [router])
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="flex flex-col items-center space-y-4">
@@ -38,7 +30,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     )
   }
 
-  if (!isAuthenticated) {
+  if (!user) {
     return null
   }
 

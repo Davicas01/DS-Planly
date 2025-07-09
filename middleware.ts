@@ -1,48 +1,56 @@
-import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+// Rotas públicas que não precisam de autenticação
+const publicRoutes = [
+  '/',
+  '/auth/login',
+  '/auth/signup',
+  '/auth/forgot-password',
+  '/auth/verify-email'
+]
+
+// Rotas protegidas que precisam de autenticação
+const protectedRoutes = [
+  '/dashboard',
+  '/habits',
+  '/finance',
+  '/health',
+  '/chat',
+  '/onboarding'
+]
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-
-  // Public routes that don't require authentication
-  const publicRoutes = [
-    "/",
-    "/auth/login",
-    "/auth/signup",
-    "/auth/forgot-password",
-    "/auth/verify-email",
-    "/terms",
-    "/privacy",
-  ]
-
-  // Check if the route is public
-  const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route))
-
-  // Get auth token from cookies or headers
-  const authToken =
-    request.cookies.get("planly_auth_token")?.value || request.headers.get("authorization")?.replace("Bearer ", "")
-
-  // If accessing a protected route without auth token
-  if (!isPublicRoute && !authToken) {
-    const loginUrl = new URL("/auth/login", request.url)
-    loginUrl.searchParams.set("redirect", pathname)
-    return NextResponse.redirect(loginUrl)
+  
+  // Verificar se o usuário está autenticado através do token Firebase
+  const firebaseToken = request.cookies.get('firebase-auth-token')?.value
+  const isAuthenticated = !!firebaseToken
+  
+  // Verificar se o usuário completou o onboarding
+  const onboardingCompleted = request.cookies.get('planly_onboarding_completed')?.value === 'true'
+  
+  // Se está em uma rota pública e está autenticado, redirecionar para dashboard
+  if (publicRoutes.includes(pathname) && isAuthenticated) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
-
-  // If accessing auth routes while authenticated
-  if (isPublicRoute && authToken && pathname.startsWith("/auth/")) {
-    return NextResponse.redirect(new URL("/dashboard", request.url))
+  
+  // Se está em uma rota protegida e não está autenticado, redirecionar para login
+  if (protectedRoutes.includes(pathname) && !isAuthenticated) {
+    return NextResponse.redirect(new URL('/auth/login', request.url))
   }
-
-  // Check onboarding completion for dashboard access
-  if (pathname.startsWith("/dashboard") && authToken) {
-    const onboardingCompleted = request.cookies.get("planly_onboarding_completed")?.value
-
-    if (!onboardingCompleted) {
-      return NextResponse.redirect(new URL("/onboarding", request.url))
-    }
+  
+  // Se está autenticado mas não completou o onboarding, redirecionar para onboarding
+  // (exceto se já estiver na página de onboarding)
+  if (isAuthenticated && !onboardingCompleted && pathname !== '/onboarding') {
+    return NextResponse.redirect(new URL('/onboarding', request.url))
   }
-
+  
+  // Se completou o onboarding mas está tentando acessar a página de onboarding, redirecionar para dashboard
+  if (isAuthenticated && onboardingCompleted && pathname === '/onboarding') {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+  
   return NextResponse.next()
 }
 
