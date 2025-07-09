@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress"
 import { Plus, Check, Edit, Trash2, Archive } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { HabitForm } from "./components/habit-form"
+import { useToast } from "@/hooks/use-toast"
 
 interface Habit {
   id: string
@@ -19,6 +20,7 @@ interface Habit {
   current: number
   color: string
   icon: string
+  lastCompleted?: string
   archived?: boolean
 }
 
@@ -34,6 +36,7 @@ export default function HabitsPage() {
       current: 1,
       color: "bg-green-500",
       icon: "💪",
+      lastCompleted: new Date().toISOString().split('T')[0]
     },
     {
       id: "2",
@@ -45,6 +48,7 @@ export default function HabitsPage() {
       current: 15,
       color: "bg-blue-500",
       icon: "📚",
+      lastCompleted: null
     },
     {
       id: "3",
@@ -56,6 +60,7 @@ export default function HabitsPage() {
       current: 1,
       color: "bg-purple-500",
       icon: "🧘‍♀️",
+      lastCompleted: new Date().toISOString().split('T')[0]
     },
     {
       id: "4",
@@ -67,31 +72,95 @@ export default function HabitsPage() {
       current: 5,
       color: "bg-cyan-500",
       icon: "💧",
+      lastCompleted: null
     },
   ])
   const [showHabitForm, setShowHabitForm] = useState(false)
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null)
 
+  const { toast } = useToast()
+
   const toggleHabit = (id: string) => {
-    setHabits(habits.map((habit) => (habit.id === id ? { ...habit, completed: !habit.completed } : habit)))
+    const today = new Date().toISOString().split('T')[0]
+    
+    setHabits(habits.map((habit) => {
+      if (habit.id === id) {
+        const wasCompleted = habit.completed
+        const newCompleted = !wasCompleted
+        
+        // Atualizar streak
+        let newStreak = habit.streak
+        if (newCompleted && !wasCompleted) {
+          newStreak = habit.streak + 1
+          toast({
+            title: "Hábito completado! 🎉",
+            description: `Parabéns! Você está em uma sequência de ${newStreak} dias.`,
+          })
+        } else if (!newCompleted && wasCompleted) {
+          // Se estava completo e agora não está mais
+          newStreak = Math.max(0, habit.streak - 1)
+        }
+        
+        return { 
+          ...habit, 
+          completed: newCompleted,
+          streak: newStreak,
+          lastCompleted: newCompleted ? today : habit.lastCompleted
+        }
+      }
+      return habit
+    }))
   }
 
   const addHabit = (newHabit: Habit) => {
-    setHabits([...habits, { ...newHabit, id: Date.now().toString() }])
+    const habit = { 
+      ...newHabit, 
+      id: Date.now().toString(),
+      completed: false,
+      streak: 0,
+      current: 0,
+      lastCompleted: null
+    }
+    setHabits([...habits, habit])
+    
+    toast({
+      title: "Hábito criado!",
+      description: `O hábito "${newHabit.name}" foi adicionado com sucesso.`,
+    })
   }
 
   const updateHabit = (updatedHabit: Habit) => {
     setHabits(habits.map((habit) => (habit.id === updatedHabit.id ? updatedHabit : habit)))
     setEditingHabit(null)
+    
+    toast({
+      title: "Hábito atualizado!",
+      description: `As alterações foram salvas com sucesso.`,
+    })
   }
 
   const archiveHabit = (id: string) => {
     setHabits(habits.map((habit) => (habit.id === id ? { ...habit, archived: true } : habit)))
+    
+    toast({
+      title: "Hábito arquivado",
+      description: "O hábito foi movido para o arquivo.",
+    })
   }
 
   const deleteHabit = (id: string) => {
+    const habit = habits.find(h => h.id === id)
     setHabits(habits.filter((habit) => habit.id !== id))
+    
+    toast({
+      title: "Hábito excluído",
+      description: `O hábito "${habit?.name}" foi excluído permanentemente.`,
+      variant: "destructive"
+    })
   }
+
+  // Filtrar hábitos não arquivados
+  const activeHabits = habits.filter(habit => !habit.archived)
 
   const completedToday = habits.filter((h) => h.completed).length
   const totalHabits = habits.length
@@ -132,7 +201,7 @@ export default function HabitsPage() {
 
       {/* Habits List */}
       <div className="space-y-4">
-        {habits.map((habit) => (
+        {activeHabits.map((habit) => (
           <Card
             key={habit.id}
             className={cn(
@@ -202,7 +271,13 @@ export default function HabitsPage() {
 
       {showHabitForm && <HabitForm onClose={() => setShowHabitForm(false)} onSave={addHabit} />}
 
-      {editingHabit && <HabitForm onClose={() => setEditingHabit(null)} onSave={updateHabit} />}
+      {editingHabit && (
+        <HabitForm 
+          onClose={() => setEditingHabit(null)} 
+          onSave={updateHabit}
+          editingHabit={editingHabit}
+        />
+      )}
     </div>
   )
 }

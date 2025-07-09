@@ -1,11 +1,24 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Heart, Moon, Droplets, Zap, TrendingUp, Plus, Activity } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 interface HealthRecord {
   date: string
@@ -14,6 +27,13 @@ interface HealthRecord {
   water: number
   energy: number
   weight?: number
+}
+
+interface SleepRecord {
+  bedtime: string
+  wakeup: string
+  quality: number
+  notes: string
 }
 
 export default function HealthPage() {
@@ -25,6 +45,15 @@ export default function HealthPage() {
     energy: 7,
   })
 
+  const [showNewRecordDialog, setShowNewRecordDialog] = useState(false)
+  const [showSleepDialog, setShowSleepDialog] = useState(false)
+  const [sleepRecord, setSleepRecord] = useState<SleepRecord>({
+    bedtime: "23:00",
+    wakeup: "07:00",
+    quality: 8,
+    notes: ""
+  })
+
   const [weekData] = useState([
     { day: "Seg", mood: 7, sleep: 8, energy: 6 },
     { day: "Ter", mood: 8, sleep: 7, energy: 8 },
@@ -34,6 +63,8 @@ export default function HealthPage() {
     { day: "Sáb", mood: 9, sleep: 9, energy: 8 },
     { day: "Dom", mood: 8, sleep: 8, energy: 7 },
   ])
+
+  const { toast } = useToast()
 
   const getMoodEmoji = (mood: number) => {
     if (mood >= 9) return "😄"
@@ -50,6 +81,76 @@ export default function HealthPage() {
     return "bg-red-500"
   }
 
+  const handleAddWater = () => {
+    if (todayRecord.water < 8) {
+      setTodayRecord(prev => ({
+        ...prev,
+        water: prev.water + 1
+      }))
+      
+      toast({
+        title: "Hidratação registrada!",
+        description: `Você bebeu ${todayRecord.water + 1} copos de água hoje.`,
+      })
+    } else {
+      toast({
+        title: "Meta atingida!",
+        description: "Você já bebeu 8 copos de água hoje. Parabéns!",
+      })
+    }
+  }
+
+  const handleSaveNewRecord = () => {
+    // Aqui você salvaria no backend
+    toast({
+      title: "Registro salvo!",
+      description: "Seus dados de saúde foram registrados com sucesso.",
+    })
+    setShowNewRecordDialog(false)
+  }
+
+  const handleSaveSleep = () => {
+    // Calcular horas de sono
+    const bedtime = new Date(`2024-01-01 ${sleepRecord.bedtime}`)
+    const wakeup = new Date(`2024-01-01 ${sleepRecord.wakeup}`)
+    
+    // Se acordou antes de dormir, adicionar um dia
+    if (wakeup < bedtime) {
+      wakeup.setDate(wakeup.getDate() + 1)
+    }
+    
+    const sleepHours = (wakeup.getTime() - bedtime.getTime()) / (1000 * 60 * 60)
+    
+    setTodayRecord(prev => ({
+      ...prev,
+      sleep: sleepHours
+    }))
+    
+    toast({
+      title: "Sono registrado!",
+      description: `Você dormiu ${sleepHours.toFixed(1)} horas com qualidade ${sleepRecord.quality}/10.`,
+    })
+    
+    setShowSleepDialog(false)
+  }
+
+  const updateTodayRecord = (field: keyof HealthRecord, value: any) => {
+    setTodayRecord(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  // Salvar automaticamente quando houver mudanças
+  useEffect(() => {
+    const saveTimer = setTimeout(() => {
+      // Aqui você salvaria no backend
+      console.log('Salvando dados:', todayRecord)
+    }, 1000)
+
+    return () => clearTimeout(saveTimer)
+  }, [todayRecord])
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -58,10 +159,15 @@ export default function HealthPage() {
           <h1 className="text-2xl font-bold text-gray-900">Saúde & Bem-estar</h1>
           <p className="text-gray-600">Monitore seu bem-estar diário</p>
         </div>
-        <Button className="bg-blue-500 hover:bg-blue-600">
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Registro
-        </Button>
+        <Dialog open={showNewRecordDialog} onOpenChange={setShowNewRecordDialog}>
+          <DialogTrigger asChild>
+            <Button className="bg-blue-500 hover:bg-blue-600">
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Registro
+            </Button>
+          </DialogTrigger>
+          <NewRecordDialog onSave={handleSaveNewRecord} />
+        </Dialog>
       </div>
 
       {/* Today's Overview */}
@@ -149,7 +255,7 @@ export default function HealthPage() {
               <span className="text-2xl">{getMoodEmoji(todayRecord.mood)}</span>
               <Slider
                 value={[todayRecord.mood]}
-                onValueChange={(value) => setTodayRecord({ ...todayRecord, mood: value[0] })}
+                onValueChange={(value) => updateTodayRecord('mood', value[0])}
                 max={10}
                 min={1}
                 step={1}
@@ -165,7 +271,7 @@ export default function HealthPage() {
               <Zap className="h-5 w-5 text-yellow-500" />
               <Slider
                 value={[todayRecord.energy]}
-                onValueChange={(value) => setTodayRecord({ ...todayRecord, energy: value[0] })}
+                onValueChange={(value) => updateTodayRecord('energy', value[0])}
                 max={10}
                 min={1}
                 step={1}
@@ -178,15 +284,25 @@ export default function HealthPage() {
           <div className="flex space-x-4">
             <Button
               variant="outline"
-              onClick={() => setTodayRecord({ ...todayRecord, water: Math.min(8, todayRecord.water + 1) })}
+              onClick={handleAddWater}
+              disabled={todayRecord.water >= 8}
             >
               <Droplets className="h-4 w-4 mr-2" />
               +1 Copo de Água
             </Button>
-            <Button variant="outline">
-              <Moon className="h-4 w-4 mr-2" />
-              Registrar Sono
-            </Button>
+            <Dialog open={showSleepDialog} onOpenChange={setShowSleepDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Moon className="h-4 w-4 mr-2" />
+                  Registrar Sono
+                </Button>
+              </DialogTrigger>
+              <SleepDialog 
+                sleepRecord={sleepRecord}
+                setSleepRecord={setSleepRecord}
+                onSave={handleSaveSleep}
+              />
+            </Dialog>
           </div>
         </CardContent>
       </Card>
@@ -254,5 +370,159 @@ export default function HealthPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+// Componente para o diálogo de novo registro
+function NewRecordDialog({ onSave }: { onSave: () => void }) {
+  const [formData, setFormData] = useState({
+    weight: '',
+    bloodPressure: '',
+    symptoms: '',
+    notes: ''
+  })
+
+  return (
+    <DialogContent className="sm:max-w-[425px]">
+      <DialogHeader>
+        <DialogTitle>Novo Registro de Saúde</DialogTitle>
+        <DialogDescription>
+          Adicione informações sobre sua saúde hoje.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="grid gap-4 py-4">
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="weight" className="text-right">
+            Peso (kg)
+          </Label>
+          <Input
+            id="weight"
+            type="number"
+            placeholder="70.5"
+            className="col-span-3"
+            value={formData.weight}
+            onChange={(e) => setFormData({...formData, weight: e.target.value})}
+          />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="bloodPressure" className="text-right">
+            Pressão
+          </Label>
+          <Input
+            id="bloodPressure"
+            placeholder="120/80"
+            className="col-span-3"
+            value={formData.bloodPressure}
+            onChange={(e) => setFormData({...formData, bloodPressure: e.target.value})}
+          />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="symptoms" className="text-right">
+            Sintomas
+          </Label>
+          <Input
+            id="symptoms"
+            placeholder="Dor de cabeça, cansaço..."
+            className="col-span-3"
+            value={formData.symptoms}
+            onChange={(e) => setFormData({...formData, symptoms: e.target.value})}
+          />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="notes" className="text-right">
+            Observações
+          </Label>
+          <Textarea
+            id="notes"
+            placeholder="Observações adicionais..."
+            className="col-span-3"
+            value={formData.notes}
+            onChange={(e) => setFormData({...formData, notes: e.target.value})}
+          />
+        </div>
+      </div>
+      <DialogFooter>
+        <Button type="submit" onClick={onSave}>Salvar Registro</Button>
+      </DialogFooter>
+    </DialogContent>
+  )
+}
+
+// Componente para o diálogo de sono
+function SleepDialog({ 
+  sleepRecord, 
+  setSleepRecord, 
+  onSave 
+}: { 
+  sleepRecord: SleepRecord
+  setSleepRecord: (record: SleepRecord) => void
+  onSave: () => void 
+}) {
+  return (
+    <DialogContent className="sm:max-w-[425px]">
+      <DialogHeader>
+        <DialogTitle>Registrar Sono</DialogTitle>
+        <DialogDescription>
+          Registre seus horários de sono e qualidade do descanso.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="grid gap-4 py-4">
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="bedtime" className="text-right">
+            Hora de dormir
+          </Label>
+          <Input
+            id="bedtime"
+            type="time"
+            className="col-span-3"
+            value={sleepRecord.bedtime}
+            onChange={(e) => setSleepRecord({...sleepRecord, bedtime: e.target.value})}
+          />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="wakeup" className="text-right">
+            Hora de acordar
+          </Label>
+          <Input
+            id="wakeup"
+            type="time"
+            className="col-span-3"
+            value={sleepRecord.wakeup}
+            onChange={(e) => setSleepRecord({...sleepRecord, wakeup: e.target.value})}
+          />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label className="text-right">
+            Qualidade (1-10)
+          </Label>
+          <div className="col-span-3 flex items-center space-x-2">
+            <Slider
+              value={[sleepRecord.quality]}
+              onValueChange={(value) => setSleepRecord({...sleepRecord, quality: value[0]})}
+              max={10}
+              min={1}
+              step={1}
+              className="flex-1"
+            />
+            <span className="font-semibold w-8">{sleepRecord.quality}</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="sleepNotes" className="text-right">
+            Observações
+          </Label>
+          <Textarea
+            id="sleepNotes"
+            placeholder="Como foi seu sono..."
+            className="col-span-3"
+            value={sleepRecord.notes}
+            onChange={(e) => setSleepRecord({...sleepRecord, notes: e.target.value})}
+          />
+        </div>
+      </div>
+      <DialogFooter>
+        <Button type="submit" onClick={onSave}>Salvar Sono</Button>
+      </DialogFooter>
+    </DialogContent>
   )
 }

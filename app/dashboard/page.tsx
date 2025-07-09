@@ -22,6 +22,13 @@ import Link from "next/link"
 
 export default function DashboardPage() {
   const [userName, setUserName] = useState("Usuário")
+  const [todayHabits, setTodayHabits] = useState([
+    { name: "Exercício", completed: true, time: "07:00" },
+    { name: "Leitura", completed: true, time: "08:30" },
+    { name: "Meditação", completed: true, time: "09:00" },
+    { name: "Água (2L)", completed: false, time: "Durante o dia" },
+    { name: "Estudar", completed: false, time: "19:00" },
+  ])
 
   useEffect(() => {
     // Get user data from auth
@@ -84,13 +91,11 @@ export default function DashboardPage() {
     },
   ]
 
-  const todayHabits = [
-    { name: "Exercício", completed: true, time: "07:00" },
-    { name: "Leitura", completed: true, time: "08:30" },
-    { name: "Meditação", completed: true, time: "09:00" },
-    { name: "Água (2L)", completed: false, time: "Durante o dia" },
-    { name: "Estudar", completed: false, time: "19:00" },
-  ]
+  const toggleHabit = (index: number) => {
+    setTodayHabits(prev => prev.map((habit, i) => 
+      i === index ? { ...habit, completed: !habit.completed } : habit
+    ))
+  }
 
   const upcomingTasks = [
     { title: "Revisar orçamento mensal", time: "14:00", type: "finance" },
@@ -183,7 +188,7 @@ export default function DashboardPage() {
                   </div>
                   {!habit.completed && (
                     <Button size="sm" variant="ghost" className="text-gray-600 hover:text-gray-900">
-                      <Plus className="h-4 w-4" />
+                      <Plus className="h-4 w-4" onClick={() => toggleHabit(index)} />
                     </Button>
                   )}
                 </div>
