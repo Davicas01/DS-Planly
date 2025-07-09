@@ -1,27 +1,20 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { ArrowLeft, Mail, Loader2, CheckCircle } from "lucide-react"
+import { ArrowLeft, Mail, CheckCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/auth-context"
 
 export default function VerifyEmailPage() {
   const [isVerified, setIsVerified] = useState(false)
-  const [canResend, setCanResend] = useState(true)
-  const [countdown, setCountdown] = useState(0)
-  const [isResending, setIsResending] = useState(false)
 
   const router = useRouter()
   const { toast } = useToast()
-  const { user, loading, resendEmailVerification } = useAuth()
+  const { user, loading } = useAuth()
 
   useEffect(() => {
     // Redirect if not authenticated
@@ -56,48 +49,23 @@ export default function VerifyEmailPage() {
     return () => clearInterval(checkVerification)
   }, [user, loading, router, toast])
 
-  const startCountdown = () => {
-    setCanResend(false)
-    setCountdown(60)
-
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer)
-          setCanResend(true)
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-  }
-
-
-
-
-
-  const handleResend = async () => {
-    if (!canResend || !user) return
-
-    setIsResending(true)
-
-    try {
-      await resendEmailVerification()
-      startCountdown()
-
-      toast({
-        title: "Email de verificação reenviado!",
-        description: "Verifique sua caixa de entrada e spam.",
-      })
-    } catch (error: any) {
-      toast({
-        title: "Erro ao reenviar email",
-        description: error.message || "Tente novamente em alguns instantes.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsResending(false)
-    }
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <Card className="w-full max-w-md shadow-md border border-gray-200">
+          <CardHeader className="text-center space-y-4 pb-8">
+            <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+              <Mail className="h-6 w-6 text-blue-600 animate-pulse" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Carregando...</h1>
+              <p className="text-gray-600 mt-2">Verificando status de autenticação...</p>
+            </div>
+          </CardHeader>
+        </Card>
+      </div>
+    )
   }
 
   if (isVerified) {
@@ -128,66 +96,18 @@ export default function VerifyEmailPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Verifique seu email</h1>
             <p className="text-gray-600 mt-2 text-sm">
-              {userName ? `Olá ${userName.split(" ")[0]}, ` : ""}
-              Enviamos um código de verificação para
+              Enviamos um link de verificação para seu email.
             </p>
-            <p className="font-medium text-gray-900">{userEmail || "seu email"}</p>
+            <p className="font-medium text-gray-900">{user?.email || "seu email"}</p>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="code-0" className="text-gray-700">
-                Código de verificação
-              </Label>
-              <div className="flex justify-between gap-2">
-                {verificationCode.map((digit, index) => (
-                  <Input
-                    key={index}
-                    id={`code-${index}`}
-                    type="text"
-                    inputMode="numeric"
-                    value={digit}
-                    onChange={(e) => handleInputChange(index, e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(index, e)}
-                    onPaste={index === 0 ? handlePaste : undefined}
-                    className="w-12 h-12 text-center text-lg font-medium"
-                    maxLength={1}
-                    disabled={isLoading}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white"
-              disabled={isLoading || verificationCode.join("").length !== 6}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Verificando...
-                </>
-              ) : (
-                "Verificar"
-              )}
-            </Button>
-          </form>
-
           <div className="text-center space-y-4">
-            <div className="text-sm text-gray-600">
-              Não recebeu o código?{" "}
-              <Button
-                variant="link"
-                onClick={handleResend}
-                disabled={!canResend || isLoading}
-                className="p-0 h-auto text-blue-600 hover:text-blue-500"
-              >
-                {canResend ? "Reenviar" : <>Reenviar em {countdown}s</>}
-              </Button>
-            </div>
+            <p className="text-sm text-gray-600">
+              Clique no link enviado para seu email para verificar sua conta.
+              Esta página será atualizada automaticamente quando a verificação for concluída.
+            </p>
 
             <Link
               href="/auth/login"
