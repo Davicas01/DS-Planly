@@ -112,7 +112,7 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-white">
       {/* Welcome Section */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -124,7 +124,7 @@ export default function DashboardPage() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => (
-          <Card key={index} className="hover:shadow-lg transition-shadow">
+          <Card key={index} className="hover:shadow-lg transition-shadow bg-white border border-gray-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">{stat.title}</CardTitle>
               <div className={`p-2 rounded-lg ${stat.bgColor}`}>
@@ -147,15 +147,15 @@ export default function DashboardPage() {
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Today's Habits */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 bg-white border border-gray-200">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-lg font-semibold">Hábitos de Hoje</CardTitle>
-                <CardDescription>Acompanhe seu progresso diário</CardDescription>
+                <CardTitle className="text-lg font-semibold text-gray-900">Hábitos de Hoje</CardTitle>
+                <CardDescription className="text-gray-600">Acompanhe seu progresso diário</CardDescription>
               </div>
               <Link href="/dashboard/habits">
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="outline" className="bg-white border-gray-300 text-gray-700 hover:bg-gray-50">
                   Ver Todos
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -182,7 +182,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   {!habit.completed && (
-                    <Button size="sm" variant="ghost">
+                    <Button size="sm" variant="ghost" className="text-gray-600 hover:text-gray-900">
                       <Plus className="h-4 w-4" />
                     </Button>
                   )}
@@ -193,10 +193,10 @@ export default function DashboardPage() {
         </Card>
 
         {/* Upcoming Tasks */}
-        <Card>
+        <Card className="bg-white border border-gray-200">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold">Próximas Tarefas</CardTitle>
-            <CardDescription>Agenda do dia</CardDescription>
+            <CardTitle className="text-lg font-semibold text-gray-900">Próximas Tarefas</CardTitle>
+            <CardDescription className="text-gray-600">Agenda do dia</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -210,7 +210,7 @@ export default function DashboardPage() {
                 </div>
               ))}
               <Link href="/dashboard/calendar">
-                <Button variant="outline" size="sm" className="w-full mt-4 bg-transparent">
+                <Button variant="outline" size="sm" className="w-full mt-4 bg-white border-gray-300 text-gray-700 hover:bg-gray-50">
                   <Calendar className="mr-2 h-4 w-4" />
                   Ver Agenda Completa
                 </Button>
@@ -221,13 +221,13 @@ export default function DashboardPage() {
       </div>
 
       {/* AI Insights */}
-      <Card>
+      <Card className="bg-white border border-gray-200">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold flex items-center">
+          <CardTitle className="text-lg font-semibold text-gray-900 flex items-center">
             <Zap className="mr-2 h-5 w-5 text-yellow-500" />
             Insights da IA
           </CardTitle>
-          <CardDescription>Descobertas personalizadas sobre seus hábitos</CardDescription>
+          <CardDescription className="text-gray-600">Descobertas personalizadas sobre seus hábitos</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -253,7 +253,7 @@ export default function DashboardPage() {
             ))}
           </div>
           <Link href="/dashboard/ai-chat">
-            <Button className="w-full mt-4 bg-transparent" variant="outline">
+            <Button className="w-full mt-4 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50" variant="outline">
               <TrendingUp className="mr-2 h-4 w-4" />
               Ver Mais Insights
             </Button>
@@ -264,7 +264,7 @@ export default function DashboardPage() {
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Link href="/dashboard/habits">
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-white border border-gray-200">
             <CardContent className="p-6 text-center">
               <Target className="h-8 w-8 text-blue-500 mx-auto mb-2" />
               <h3 className="font-semibold text-gray-900">Adicionar Hábito</h3>
@@ -274,7 +274,7 @@ export default function DashboardPage() {
         </Link>
 
         <Link href="/dashboard/finance">
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-white border border-gray-200">
             <CardContent className="p-6 text-center">
               <DollarSign className="h-8 w-8 text-green-500 mx-auto mb-2" />
               <h3 className="font-semibold text-gray-900">Lançar Gasto</h3>
@@ -284,7 +284,7 @@ export default function DashboardPage() {
         </Link>
 
         <Link href="/dashboard/health">
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-white border border-gray-200">
             <CardContent className="p-6 text-center">
               <Heart className="h-8 w-8 text-red-500 mx-auto mb-2" />
               <h3 className="font-semibold text-gray-900">Registrar Humor</h3>
