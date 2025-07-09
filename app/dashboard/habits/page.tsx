@@ -1,12 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Plus, Check, Calendar, TrendingUp, MoreHorizontal } from "lucide-react"
+import { Plus, Check, Edit, Trash2, Archive } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { HabitForm } from "./components/habit-form"
 
 interface Habit {
   id: string
@@ -18,6 +19,7 @@ interface Habit {
   current: number
   color: string
   icon: string
+  archived?: boolean
 }
 
 export default function HabitsPage() {
@@ -67,9 +69,28 @@ export default function HabitsPage() {
       icon: "💧",
     },
   ])
+  const [showHabitForm, setShowHabitForm] = useState(false)
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null)
 
   const toggleHabit = (id: string) => {
     setHabits(habits.map((habit) => (habit.id === id ? { ...habit, completed: !habit.completed } : habit)))
+  }
+
+  const addHabit = (newHabit: Habit) => {
+    setHabits([...habits, { ...newHabit, id: Date.now().toString() }])
+  }
+
+  const updateHabit = (updatedHabit: Habit) => {
+    setHabits(habits.map((habit) => (habit.id === updatedHabit.id ? updatedHabit : habit)))
+    setEditingHabit(null)
+  }
+
+  const archiveHabit = (id: string) => {
+    setHabits(habits.map((habit) => (habit.id === id ? { ...habit, archived: true } : habit)))
+  }
+
+  const deleteHabit = (id: string) => {
+    setHabits(habits.filter((habit) => habit.id !== id))
   }
 
   const completedToday = habits.filter((h) => h.completed).length
@@ -84,7 +105,7 @@ export default function HabitsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Hábitos</h1>
           <p className="text-gray-600">Construa uma rotina que transforma</p>
         </div>
-        <Button className="bg-blue-500 hover:bg-blue-600">
+        <Button className="bg-blue-500 hover:bg-blue-600" onClick={() => setShowHabitForm(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Novo Hábito
         </Button>
@@ -117,6 +138,7 @@ export default function HabitsPage() {
             className={cn(
               "transition-all duration-200 hover:shadow-md",
               habit.completed && "bg-green-50 border-green-200",
+              habit.archived && "opacity-50",
             )}
           >
             <CardContent className="p-6">
@@ -161,56 +183,26 @@ export default function HabitsPage() {
                   </div>
                 </div>
 
-                <Button variant="ghost" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
+                <div className="flex space-x-2">
+                  <Button variant="ghost" size="icon" onClick={() => setEditingHabit(habit)}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => archiveHabit(habit.id)}>
+                    <Archive className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => deleteHabit(habit.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Weekly Overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Calendar className="h-5 w-5" />
-            <span>Visão Semanal</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-7 gap-2 mb-4">
-            {["D", "S", "T", "Q", "Q", "S", "S"].map((day, index) => (
-              <div key={index} className="text-center">
-                <div className="text-xs text-gray-500 mb-2">{day}</div>
-                <div
-                  className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium",
-                    index < 5 ? "bg-green-500 text-white" : "bg-gray-200 text-gray-500",
-                  )}
-                >
-                  {index + 1}
-                </div>
-              </div>
-            ))}
-          </div>
+      {showHabitForm && <HabitForm onClose={() => setShowHabitForm(false)} onSave={addHabit} />}
 
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span>Completo</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-gray-200 rounded-full"></div>
-              <span>Pendente</span>
-            </div>
-            <div className="flex items-center space-x-2 text-green-600">
-              <TrendingUp className="h-4 w-4" />
-              <span>71% esta semana</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {editingHabit && <HabitForm onClose={() => setEditingHabit(null)} onSave={updateHabit} />}
     </div>
   )
 }
