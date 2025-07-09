@@ -9,9 +9,10 @@ import {
   updateProfile,
   GoogleAuthProvider,
   signInWithPopup,
-  sendEmailVerification
+  sendEmailVerification,
+  Auth
 } from 'firebase/auth'
-import { auth } from '@/lib/firebase'
+import { getFirebaseAuth } from '@/lib/firebaseClient'
 import { deleteCookie, setCookie } from 'cookies-next'
 
 export interface AuthUser {
@@ -26,8 +27,24 @@ export const useFirebaseAuth = () => {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [auth, setAuth] = useState<Auth | null>(null)
+
+  // Initialize Firebase Auth only on client-side
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const authInstance = getFirebaseAuth()
+        setAuth(authInstance)
+      } catch (error) {
+        console.error('Failed to initialize Firebase Auth:', error)
+        setLoading(false)
+      }
+    }
+  }, [])
 
   useEffect(() => {
+    if (!auth) return
+    
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser({
@@ -56,9 +73,11 @@ export const useFirebaseAuth = () => {
     })
 
     return () => unsubscribe()
-  }, [])
+  }, [auth])
 
   const signIn = async (email: string, password: string) => {
+    if (!auth) throw new Error('Firebase Auth not initialized')
+    
     try {
       setError(null)
       setLoading(true)
@@ -80,6 +99,8 @@ export const useFirebaseAuth = () => {
   }
 
   const signUp = async (email: string, password: string, displayName: string) => {
+    if (!auth) throw new Error('Firebase Auth not initialized')
+    
     try {
       setError(null)
       setLoading(true)
@@ -109,6 +130,8 @@ export const useFirebaseAuth = () => {
   }
 
   const signInWithGoogle = async () => {
+    if (!auth) throw new Error('Firebase Auth not initialized')
+    
     try {
       setError(null)
       setLoading(true)
@@ -131,6 +154,8 @@ export const useFirebaseAuth = () => {
   }
 
   const logout = async () => {
+    if (!auth) throw new Error('Firebase Auth not initialized')
+    
     try {
       setError(null)
       await signOut(auth)
@@ -143,6 +168,8 @@ export const useFirebaseAuth = () => {
   }
 
   const resetPassword = async (email: string) => {
+    if (!auth) throw new Error('Firebase Auth not initialized')
+    
     try {
       setError(null)
       await sendPasswordResetEmail(auth, email)
@@ -153,6 +180,8 @@ export const useFirebaseAuth = () => {
   }
 
   const resendEmailVerification = async () => {
+    if (!auth) throw new Error('Firebase Auth not initialized')
+    
     try {
       setError(null)
       if (auth.currentUser) {

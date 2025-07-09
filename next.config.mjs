@@ -18,7 +18,28 @@ const nextConfig = withPWAConfig({
   images: {
     unoptimized: true,
   },
-  /* config options here */
+  // Configurações para evitar problemas com Firebase no SSR
+  experimental: {
+    esmExternals: 'loose',
+  },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Evitar que Firebase seja bundled no servidor
+      config.externals = config.externals || []
+      config.externals.push({
+        'firebase/app': 'commonjs firebase/app',
+        'firebase/auth': 'commonjs firebase/auth',
+        'firebase/firestore': 'commonjs firebase/firestore',
+        'firebase/storage': 'commonjs firebase/storage',
+        'firebase/analytics': 'commonjs firebase/analytics',
+      })
+    }
+    return config
+  },
+  // Forçar renderização client-side para páginas específicas
+  async rewrites() {
+    return []
+  },
 })
 
 export default nextConfig
