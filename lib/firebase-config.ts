@@ -37,12 +37,12 @@ export const shouldBeClientOnly = (pathname: string): boolean => {
 
 // Configuração de ambiente para Firebase
 export const firebaseEnvConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '',
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '',
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '',
 }
 
 // Validar configuração do Firebase
@@ -62,10 +62,20 @@ export const validateFirebaseConfig = (): boolean => {
   })
 }
 
-// Log de configuração (apenas em desenvolvimento)
-if (process.env.NODE_ENV === 'development' && isClientSide) {
-  console.log('Firebase Config Validation:', validateFirebaseConfig())
-  if (!validateFirebaseConfig()) {
-    console.warn('Firebase configuration is incomplete. Check your environment variables.')
+// Log de configuração e validação
+if (isClientSide) {
+  const isValid = validateFirebaseConfig()
+  console.log('Firebase Config Validation:', isValid)
+  
+  if (!isValid) {
+    console.error('Firebase configuration is invalid or incomplete')
+    console.error('Missing environment variables:', {
+      NEXT_PUBLIC_FIREBASE_API_KEY: !firebaseEnvConfig.apiKey ? 'MISSING' : 'OK',
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: !firebaseEnvConfig.authDomain ? 'MISSING' : 'OK',
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: !firebaseEnvConfig.projectId ? 'MISSING' : 'OK',
+      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: !firebaseEnvConfig.storageBucket ? 'MISSING' : 'OK',
+      NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: !firebaseEnvConfig.messagingSenderId ? 'MISSING' : 'OK',
+      NEXT_PUBLIC_FIREBASE_APP_ID: !firebaseEnvConfig.appId ? 'MISSING' : 'OK',
+    })
   }
 }
