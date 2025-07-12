@@ -5,6 +5,8 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from "@/contexts/auth-context"
+import OnboardingGuard from "@/components/auth/onboarding-guard"
+import { Suspense } from "react"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -25,7 +27,7 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/icon-192x192.png", sizes: "192x192", type: "image/png" }],
   },
-    generator: 'v0.dev'
+  generator: 'v0.dev'
 }
 
 export const viewport: Viewport = {
@@ -34,6 +36,18 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   themeColor: '#3b82f6'
+}
+
+// Componente de loading para suspense
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="flex flex-col items-center space-y-4">
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-slate-600">Carregando...</p>
+      </div>
+    </div>
+  )
 }
 
 export default function RootLayout({
@@ -52,12 +66,16 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
       </head>
       <body className={inter.className}>
-        <AuthProvider>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-            {children}
-            <Toaster />
-          </ThemeProvider>
-        </AuthProvider>
+        <Suspense fallback={<LoadingFallback />}>
+          <AuthProvider>
+            <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+              <OnboardingGuard fallback={<LoadingFallback />}>
+                {children}
+              </OnboardingGuard>
+              <Toaster />
+            </ThemeProvider>
+          </AuthProvider>
+        </Suspense>
 
         <script
           dangerouslySetInnerHTML={{

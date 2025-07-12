@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, Target, DollarSign, Heart, MessageCircle, Settings, LogOut } from "lucide-react"
+import { Home, Target, DollarSign, Heart, MessageCircle, Settings, User, HelpCircle, LogOut } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
@@ -20,7 +20,9 @@ const navigation = [
   { name: "Finanças", href: "/dashboard/finance", icon: DollarSign },
   { name: "Saúde", href: "/dashboard/health", icon: Heart },
   { name: "Chat IA", href: "/dashboard/ai-chat", icon: MessageCircle },
+  { name: "Perfil", href: "/dashboard/profile", icon: User },
   { name: "Configurações", href: "/dashboard/settings", icon: Settings },
+  { name: "Ajuda", href: "/dashboard/help", icon: HelpCircle },
 ]
 
 export function AppSidebar() {

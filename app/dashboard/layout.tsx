@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useRouter } from "next/navigation"
+import { useEffect } from "react"
 import { AppSidebar } from "@/components/dashboard/sidebar"
 import { Header } from "@/components/dashboard/header"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
@@ -13,11 +14,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, loading } = useAuth()
   const router = useRouter()
 
-  // Redirect to login if not authenticated
-  if (!loading && !user) {
-    router.push("/auth/login?redirect=/dashboard")
-    return null
-  }
+  // Handle redirect in useEffect to avoid render issues
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/auth/login?redirect=" + encodeURIComponent(window.location.pathname))
+    }
+  }, [loading, user, router])
 
   if (loading) {
     return (

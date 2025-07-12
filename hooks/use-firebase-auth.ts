@@ -29,16 +29,20 @@ export const useFirebaseAuth = () => {
   const [error, setError] = useState<string | null>(null)
   const [auth, setAuth] = useState<Auth | null>(null)
 
-  // Initialize Firebase Auth only on client-side
+  // Debug da inicialização
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
         const authInstance = getFirebaseAuth()
         setAuth(authInstance)
+        console.log('Firebase Auth inicializado:', !!authInstance)
       } catch (error) {
         console.error('Failed to initialize Firebase Auth:', error)
+        setError('Failed to initialize authentication')
         setLoading(false)
       }
+    } else {
+      setLoading(false)
     }
   }, [])
 
@@ -46,6 +50,8 @@ export const useFirebaseAuth = () => {
     if (!auth) return
     
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log('Estado de autenticação mudou:', !!firebaseUser)
+      
       if (firebaseUser) {
         setUser({
           uid: firebaseUser.uid,
@@ -81,7 +87,31 @@ export const useFirebaseAuth = () => {
     try {
       setError(null)
       setLoading(true)
-      const result = await signInWithEmailAndPassword(auth, email, password)
+      
+      // Debug detalhado
+      console.log('Tentativa de login:', {
+        email: email?.trim(),
+        hasPassword: !!password,
+        authInstance: !!auth,
+        emailLength: email?.length,
+        passwordLength: password?.length
+      })
+      
+      // Validações básicas
+      if (!email || !password) {
+        console.error('Email ou senha faltando')
+        throw new Error('Email ou senha faltando')
+      }
+      
+      if (!email.includes('@')) {
+        console.error('Email inválido')
+        throw new Error('Email inválido')
+      }
+      
+      const result = await signInWithEmailAndPassword(auth, email.trim(), password)
+      
+      console.log('Login bem-sucedido:', result.user.uid)
+      
       const token = await result.user.getIdToken()
       setCookie('firebase-auth-token', token, {
         maxAge: 60 * 60 * 24 * 7, // 7 dias
@@ -91,7 +121,37 @@ export const useFirebaseAuth = () => {
       })
       return result.user
     } catch (error: any) {
-      setError(getErrorMessage(error.code))
+      console.error('Erro completo de autenticação:', {
+        code: error.code,
+        message: error.message,
+        details: error,
+        timestamp: new Date().toISOString()
+      })
+      
+      // Tratamento específico de erros
+      switch (error.code) {
+        case 'auth/invalid-credential':
+          setError('Email ou senha incorretos')
+          break
+        case 'auth/user-not-found':
+          setError('Usuário não encontrado')
+          break
+        case 'auth/wrong-password':
+          setError('Senha incorreta')
+          break
+        case 'auth/invalid-email':
+          setError('Email inválido')
+          break
+        case 'auth/user-disabled':
+          setError('Conta desabilitada')
+          break
+        case 'auth/too-many-requests':
+          setError('Muitas tentativas. Tente novamente mais tarde')
+          break
+        default:
+          setError('Erro de autenticação: ' + error.message)
+      }
+      
       throw error
     } finally {
       setLoading(false)
@@ -213,6 +273,8 @@ const getErrorMessage = (errorCode: string): string => {
       return 'Usuário não encontrado'
     case 'auth/wrong-password':
       return 'Senha incorreta'
+    case 'auth/invalid-credential':
+      return 'Email ou senha incorretos'
     case 'auth/email-already-in-use':
       return 'Este email já está em uso'
     case 'auth/weak-password':
@@ -229,7 +291,25 @@ const getErrorMessage = (errorCode: string): string => {
       return 'Login cancelado pelo usuário'
     case 'auth/cancelled-popup-request':
       return 'Solicitação de login cancelada'
+    case 'auth/invalid-api-key':
+      return 'Chave API inválida. Verifique a configuração do Firebase'
+    case 'auth/app-deleted':
+      return 'Aplicação Firebase foi deletada'
+    case 'auth/app-not-authorized':
+      return 'Aplicação não autorizada'
+    case 'auth/argument-error':
+      return 'Erro nos argumentos fornecidos'
+    case 'auth/invalid-user-token':
+      return 'Token de usuário inválido'
+    case 'auth/user-token-expired':
+      return 'Token de usuário expirado'
+    case 'auth/null-user':
+      return 'Usuário nulo'
+    case 'auth/tenant-id-mismatch':
+      return 'ID do tenant não coincide'
+    case 'auth/requires-recent-login':
+      return 'Operação requer login recente'
     default:
-      return 'Erro desconhecido. Tente novamente'
+      return 'Erro de autenticação: ' + errorCode
   }
 }

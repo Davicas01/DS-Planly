@@ -3,7 +3,7 @@ import { Auth, getAuth } from 'firebase/auth'
 import { Firestore, getFirestore } from 'firebase/firestore'
 import { FirebaseStorage, getStorage } from 'firebase/storage'
 import { Analytics, getAnalytics } from 'firebase/analytics'
-import app from './firebaseApp'
+import { getFirebaseApp } from './firebaseApp'
 
 // Client-side only Firebase services
 let auth: Auth | null = null
@@ -18,7 +18,13 @@ export const getFirebaseAuth = (): Auth => {
   }
   
   if (!auth) {
-    auth = getAuth(app)
+    try {
+      const app = getFirebaseApp()
+      auth = getAuth(app)
+    } catch (error) {
+      console.error('Failed to initialize Firebase Auth:', error)
+      throw error
+    }
   }
   
   return auth
@@ -31,7 +37,14 @@ export const getFirebaseFirestore = (): Firestore => {
   }
   
   if (!db) {
-    db = getFirestore(app)
+    try {
+      const app = getFirebaseApp()
+      db = getFirestore(app)
+      console.log('Firestore initialized successfully:', !!db)
+    } catch (error) {
+      console.error('Failed to initialize Firebase Firestore:', error)
+      throw error
+    }
   }
   
   return db
@@ -44,63 +57,47 @@ export const getFirebaseStorage = (): FirebaseStorage => {
   }
   
   if (!storage) {
-    storage = getStorage(app)
+    try {
+      const app = getFirebaseApp()
+      storage = getStorage(app)
+    } catch (error) {
+      console.error('Failed to initialize Firebase Storage:', error)
+      throw error
+    }
   }
   
   return storage
 }
 
 // Safe Analytics getter - CLIENT ONLY
-export const getFirebaseAnalytics = (): Analytics | null => {
+export const getFirebaseAnalytics = (): Analytics => {
   if (typeof window === 'undefined') {
-    return null
+    throw new Error('Firebase Analytics can only be used on the client side')
   }
   
   if (!analytics) {
     try {
+      const app = getFirebaseApp()
       analytics = getAnalytics(app)
     } catch (error) {
-      console.warn('Analytics not available:', error)
-      return null
+      console.error('Failed to initialize Firebase Analytics:', error)
+      throw error
     }
   }
   
   return analytics
 }
 
-// Hook-based Firebase services for React components
-export const useFirebaseServices = () => {
-  const getAuth = () => {
-    if (typeof window === 'undefined') return null
-    return getFirebaseAuth()
+// Utility function to check if Firebase is properly initialized
+export const isFirebaseInitialized = (): boolean => {
+  if (typeof window === 'undefined') {
+    return false
   }
   
-  const getFirestore = () => {
-    if (typeof window === 'undefined') return null
-    return getFirebaseFirestore()
-  }
-  
-  const getStorage = () => {
-    if (typeof window === 'undefined') return null
-    return getFirebaseStorage()
-  }
-  
-  const getAnalytics = () => {
-    if (typeof window === 'undefined') return null
-    return getFirebaseAnalytics()
-  }
-  
-  return {
-    auth: getAuth(),
-    db: getFirestore(),
-    storage: getStorage(),
-    analytics: getAnalytics()
+  try {
+    getFirebaseApp()
+    return true
+  } catch (error) {
+    return false
   }
 }
-
-// Legacy exports for backward compatibility
-// Note: Use the getter functions above for better error handling
-export { getFirebaseAuth as auth }
-export { getFirebaseFirestore as db }
-export { getFirebaseStorage as storage }
-export { getFirebaseAnalytics as analytics }

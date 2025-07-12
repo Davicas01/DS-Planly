@@ -205,9 +205,24 @@ export function Header({ onMenuClick }: HeaderProps) {
                 <p className="text-sm text-gray-500">Minha Conta</p>
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-gray-700">Perfil</DropdownMenuItem>
-              <DropdownMenuItem className="text-gray-700">Configurações</DropdownMenuItem>
-              <DropdownMenuItem className="text-gray-700">Ajuda</DropdownMenuItem>
+              <DropdownMenuItem 
+                className="text-gray-700 cursor-pointer"
+                onClick={() => router.push('/dashboard/profile')}
+              >
+                Perfil
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                className="text-gray-700 cursor-pointer"
+                onClick={() => router.push('/dashboard/settings')}
+              >
+                Configurações
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                className="text-gray-700 cursor-pointer"
+                onClick={() => router.push('/dashboard/help')}
+              >
+                Ajuda
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-red-600" onClick={handleLogout}>
                 Sair

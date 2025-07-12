@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext } from 'react'
-import { useFirebaseAuth, AuthUser } from '@/hooks/use-firebase-auth'
+import { useFirebaseAuthSafe, AuthUser } from '@/hooks/use-firebase-auth-safe'
 
 interface AuthContextType {
   user: AuthUser | null
@@ -18,7 +18,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const auth = useFirebaseAuth()
+  const auth = useFirebaseAuthSafe()
 
   return (
     <AuthContext.Provider value={auth}>

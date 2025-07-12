@@ -18,53 +18,97 @@ import {
   Camera,
   Trophy,
   Target,
-  TrendingUp
+  TrendingUp,
+  Loader2
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/contexts/auth-context"
+import { useUserData } from "@/hooks/useUserData"
+import { useUserStats } from "@/hooks/useUserStats"
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore"
+import { db } from "@/lib/firebase"
 
 export default function ProfilePage() {
+  const { user } = useAuth()
+  const { userData, loading: userLoading } = useUserData()
+  const { userStats, achievements, loading: statsLoading } = useUserStats(user?.uid)
+  const { toast } = useToast()
+  
   const [isEditing, setIsEditing] = useState(false)
   const [userProfile, setUserProfile] = useState({
-    name: "Usuário Demo",
-    email: "demo@planly.app",
-    phone: "+55 (11) 99999-9999",
-    location: "São Paulo, SP",
-    bio: "Apaixonado por produtividade e bem-estar. Sempre buscando melhorar meus hábitos e qualidade de vida.",
-    joinDate: "Janeiro 2024",
-    avatar: ""
+    name: '',
+    email: '',
+    phone: '',
+    location: '',
+    bio: '',
+    joinDate: '',
+    avatar: ''
   })
 
-  const [stats] = useState({
-    totalHabits: 12,
-    completedToday: 8,
-    currentStreak: 23,
-    totalDays: 45
-  })
+  // Atualizar estado quando dados do Firebase chegarem
+  useEffect(() => {
+    if (userData && user) {
+      setUserProfile({
+        name: userData.displayName || user.displayName || '',
+        email: userData.email || user.email || '',
+        phone: userData.phone || '',
+        location: userData.location || '',
+        bio: userData.bio || '',
+        joinDate: userData.joinDate ? new Date(userData.joinDate).toLocaleDateString('pt-BR', { 
+          year: 'numeric', 
+          month: 'long' 
+        }) : '',
+        avatar: userData.photoURL || user.photoURL || ''
+      })
+    }
+  }, [userData, user])
 
-  const [achievements] = useState([
-    { id: 1, name: "Primeira Semana", description: "Complete 7 dias consecutivos", earned: true },
-    { id: 2, name: "Disciplinado", description: "Complete 30 dias consecutivos", earned: true },
-    { id: 3, name: "Mestre dos Hábitos", description: "Complete 100 dias consecutivos", earned: false },
-    { id: 4, name: "Equilibrado", description: "Use todos os módulos por 7 dias", earned: true },
-  ])
-
-  const { toast } = useToast()
-
-  const handleSaveProfile = () => {
-    // Aqui você salvaria no backend
-    setIsEditing(false)
-    toast({
-      title: "Perfil atualizado!",
-      description: "Suas informações foram salvas com sucesso.",
-    })
+  const handleSaveProfile = async () => {
+    if (!user?.uid) return
+    
+    try {
+      // Salvar no Firebase
+      await updateDoc(doc(db, 'users', user.uid), {
+        displayName: userProfile.name,
+        phone: userProfile.phone,
+        location: userProfile.location,
+        bio: userProfile.bio,
+        updatedAt: serverTimestamp()
+      })
+      
+      setIsEditing(false)
+      toast({
+        title: "Perfil atualizado!",
+        description: "Suas informações foram salvas com sucesso.",
+      })
+    } catch (error) {
+      console.error('Erro ao salvar perfil:', error)
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar as alterações. Tente novamente.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleAvatarChange = () => {
-    // Aqui você implementaria o upload de avatar
+    // Implementar upload de avatar futuramente
     toast({
-      title: "Avatar atualizado!",
-      description: "Sua foto de perfil foi alterada.",
+      title: "Funcionalidade em desenvolvimento",
+      description: "O upload de avatar será implementado em breve.",
     })
+  }
+
+  // Loading state
+  if (userLoading || statsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <p className="text-gray-600">Carregando perfil...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -195,28 +239,30 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {achievements.map((achievement) => (
-                  <div
-                    key={achievement.id}
-                    className={`p-4 rounded-lg border ${
-                      achievement.earned 
-                        ? 'bg-yellow-50 border-yellow-200' 
-                        : 'bg-gray-50 border-gray-200 opacity-60'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        achievement.earned ? 'bg-yellow-500' : 'bg-gray-400'
-                      }`}>
-                        <Trophy className="h-5 w-5 text-white" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-gray-900">{achievement.name}</h4>
-                        <p className="text-sm text-gray-600">{achievement.description}</p>
+                {achievements.length > 0 ? (
+                  achievements.map((achievement) => (
+                    <div
+                      key={achievement.id}
+                      className="p-4 rounded-lg border bg-yellow-50 border-yellow-200"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center bg-yellow-500">
+                          <Trophy className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-900">{achievement.title}</h4>
+                          <p className="text-sm text-gray-600">{achievement.description}</p>
+                        </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="col-span-2 text-center py-8">
+                    <Trophy className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500 mb-2">Nenhuma conquista ainda</p>
+                    <p className="text-sm text-gray-400">Complete hábitos e use o app para desbloquear conquistas!</p>
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>
@@ -234,17 +280,17 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-center">
-                <div className="text-3xl font-bold text-blue-600">{stats.currentStreak}</div>
-                <p className="text-sm text-gray-600">Dias consecutivos</p>
+                <div className="text-3xl font-bold text-blue-600">{userStats.longestStreak}</div>
+                <p className="text-sm text-gray-600">Maior sequência</p>
               </div>
               
               <div className="grid grid-cols-2 gap-4 text-center">
                 <div>
-                  <div className="text-xl font-semibold text-gray-900">{stats.completedToday}</div>
-                  <p className="text-xs text-gray-600">Hoje</p>
+                  <div className="text-xl font-semibold text-gray-900">{userStats.activeHabits}</div>
+                  <p className="text-xs text-gray-600">Ativos</p>
                 </div>
                 <div>
-                  <div className="text-xl font-semibold text-gray-900">{stats.totalHabits}</div>
+                  <div className="text-xl font-semibold text-gray-900">{userStats.totalHabits}</div>
                   <p className="text-xs text-gray-600">Total</p>
                 </div>
               </div>
@@ -252,11 +298,15 @@ export default function ProfilePage() {
               <div className="pt-4 border-t">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">Membro desde</span>
-                  <span className="font-medium">{userProfile.joinDate}</span>
+                  <span className="font-medium">{userProfile.joinDate || 'Recente'}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm mt-2">
                   <span className="text-gray-600">Dias ativos</span>
-                  <span className="font-medium">{stats.totalDays}</span>
+                  <span className="font-medium">{userStats.totalDaysActive}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm mt-2">
+                  <span className="text-gray-600">Humor médio</span>
+                  <span className="font-medium">{userStats.averageMood > 0 ? `${userStats.averageMood}/10` : 'N/A'}</span>
                 </div>
               </div>
             </CardContent>
@@ -296,13 +346,18 @@ export default function ProfilePage() {
               <div className="text-center space-y-3">
                 <Badge className="bg-blue-100 text-blue-700">Gratuito</Badge>
                 <p className="text-sm text-gray-600">
-                  3 hábitos ativos<br />
-                  30 dias de histórico<br />
-                  10 perguntas IA/dia
+                  Hábitos ilimitados<br />
+                  Histórico completo<br />
+                  Insights personalizados
                 </p>
-                <Button className="w-full" size="sm">
-                  Fazer Upgrade
-                </Button>
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm font-medium text-blue-900">
+                    {userStats.totalHabits} hábitos criados
+                  </p>
+                  <p className="text-xs text-blue-700 mt-1">
+                    {userStats.totalTransactions} transações registradas
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>

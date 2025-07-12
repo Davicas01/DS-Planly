@@ -17,21 +17,32 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  Loader2,
 } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/contexts/auth-context"
+import { useUserData } from "@/hooks/useUserData"
+import { useDashboardHabits } from "@/hooks/useDashboardHabits"
+import { useFinanceStats } from "@/hooks/useFinanceStats"
+import { useMoodStats } from "@/hooks/useMoodStats"
+import { useTaskStats } from "@/hooks/useTaskStats"
+import { doc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore"
+import { db } from "@/lib/firebase"
+import { useToast } from "@/hooks/use-toast"
 
 export default function DashboardPage() {
   const { user } = useAuth()
-  const [todayHabits, setTodayHabits] = useState([
-    { name: "Exercício", completed: true, time: "07:00" },
-    { name: "Leitura", completed: true, time: "08:30" },
-    { name: "Meditação", completed: true, time: "09:00" },
-    { name: "Água (2L)", completed: false, time: "Durante o dia" },
-    { name: "Estudar", completed: false, time: "19:00" },
-  ])
+  const { userData, loading: userLoading } = useUserData()
+  const { todayProgress, todayHabits, loading: habitsLoading } = useDashboardHabits(user?.uid)
+  const { stats: financeStats, loading: financeLoading } = useFinanceStats(user?.uid)
+  const { stats: moodStats, loading: moodLoading } = useMoodStats(user?.uid)
+  const { stats: taskStats, loading: taskLoading } = useTaskStats(user?.uid)
+  const { toast } = useToast()
 
-  const userName = user?.displayName?.split(" ")[0] || user?.email?.split("@")[0] || "Usuário"
+  const userName = userData?.displayName?.split(" ")[0] || 
+                   user?.displayName?.split(" ")[0] || 
+                   user?.email?.split("@")[0] || 
+                   "Usuário"
 
   const getGreeting = () => {
     const hour = new Date().getHours()
@@ -40,69 +51,143 @@ export default function DashboardPage() {
     return "Boa noite"
   }
 
+  // Função para marcar/desmarcar hábito
+  const toggleHabit = async (habitId: string) => {
+    if (!user?.uid) return
+    
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const logRef = doc(db, `habitLogs/${user.uid}/logs/${today}`)
+      
+      // Encontrar o hábito atual
+      const currentHabit = todayHabits.find(h => h.id === habitId)
+      if (!currentHabit) return
+      
+      const isCompleted = !currentHabit.completed
+      
+      // Atualizar o log do hábito
+      await setDoc(logRef, {
+        date: today,
+        logs: {
+          [habitId]: {
+            completed: isCompleted,
+            completedAt: isCompleted ? serverTimestamp() : null
+          }
+        }
+      }, { merge: true })
+      
+      toast({
+        title: isCompleted ? "Hábito completado!" : "Hábito desmarcado",
+        description: `${currentHabit.name} foi ${isCompleted ? 'marcado como completo' : 'desmarcado'}.`,
+      })
+      
+      // Recarregar a página para atualizar os dados
+      window.location.reload()
+    } catch (error) {
+      console.error('Erro ao atualizar hábito:', error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar o hábito. Tente novamente.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Loading state
+  if (userLoading || habitsLoading || financeLoading || moodLoading || taskLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <p className="text-gray-600">Carregando dados...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Estatísticas com dados reais
   const stats = [
     {
       title: "Hábitos Hoje",
-      value: "7/10",
-      description: "3 restantes",
+      value: todayProgress.total > 0 ? `${todayProgress.completed}/${todayProgress.total}` : "0/0",
+      description: todayProgress.total > 0 ? `${todayProgress.total - todayProgress.completed} restantes` : "Nenhum hábito cadastrado",
       icon: Target,
       color: "text-blue-600",
       bgColor: "bg-blue-100",
-      progress: 70,
+      progress: todayProgress.percentage,
     },
     {
       title: "Saldo Atual",
-      value: "R$ 2.847",
-      description: "+12% este mês",
+      value: `R$ ${financeStats.currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      description: financeStats.monthlyChangePercentage !== 0 ? `${financeStats.trend} este mês` : "Sem movimentação",
       icon: DollarSign,
-      color: "text-green-600",
-      bgColor: "bg-green-100",
-      trend: "+12%",
+      color: financeStats.currentBalance >= 0 ? "text-green-600" : "text-red-600",
+      bgColor: financeStats.currentBalance >= 0 ? "bg-green-100" : "bg-red-100",
+      trend: financeStats.trend,
     },
     {
       title: "Humor Médio",
-      value: "8.2/10",
-      description: "Excelente semana",
+      value: moodStats.averageRating > 0 ? `${moodStats.averageRating}/10` : "0/10",
+      description: moodStats.totalEntries > 0 ? "Baseado em suas anotações" : "Nenhuma anotação",
       icon: Heart,
       color: "text-red-600",
       bgColor: "bg-red-100",
-      trend: "+0.5",
+      trend: moodStats.trend !== '+0.0' ? moodStats.trend : null,
     },
     {
-      title: "Streak Record",
-      value: "23 dias",
-      description: "Melhor sequência",
-      icon: Zap,
-      color: "text-yellow-600",
-      bgColor: "bg-yellow-100",
-      badge: "Recorde!",
+      title: "Tarefas Pendentes",
+      value: taskStats.pendingTasks.toString(),
+      description: taskStats.overdueTasks > 0 ? `${taskStats.overdueTasks} em atraso` : "Tudo em dia",
+      icon: Clock,
+      color: taskStats.overdueTasks > 0 ? "text-orange-600" : "text-green-600",
+      bgColor: taskStats.overdueTasks > 0 ? "bg-orange-100" : "bg-green-100",
+      badge: taskStats.completedToday > 0 ? `${taskStats.completedToday} hoje` : null,
     },
   ]
 
-  const toggleHabit = (index: number) => {
-    setTodayHabits(prev => prev.map((habit, i) => 
-      i === index ? { ...habit, completed: !habit.completed } : habit
-    ))
+  // Insights personalizados baseados nos dados reais
+  const insights = []
+  
+  if (todayProgress.total > 0 && todayProgress.percentage < 50) {
+    insights.push({
+      title: "Foco nos Hábitos",
+      description: `Você completou apenas ${todayProgress.completed} de ${todayProgress.total} hábitos hoje. Que tal dar uma olhada nos pendentes?`,
+      type: "warning",
+    })
   }
 
-  const upcomingTasks = [
-    { title: "Revisar orçamento mensal", time: "14:00", type: "finance" },
-    { title: "Consulta médica", time: "16:30", type: "health" },
-    { title: "Planejar semana", time: "20:00", type: "planning" },
-  ]
-
-  const insights = [
-    {
-      title: "Padrão Identificado",
-      description: "Você gasta 15% mais quando não faz exercícios. Que tal manter a rotina?",
+  if (financeStats.currentBalance < 0) {
+    insights.push({
+      title: "Atenção às Finanças",
+      description: "Seu saldo está negativo. Considere revisar seus gastos recentes.",
       type: "warning",
-    },
-    {
-      title: "Meta Alcançada",
-      description: "Parabéns! Você completou 7 dias consecutivos de leitura.",
+    })
+  }
+
+  if (todayProgress.percentage === 100 && todayProgress.total > 0) {
+    insights.push({
+      title: "Parabéns!",
+      description: "Você completou todos os seus hábitos hoje. Continue assim!",
       type: "success",
-    },
-  ]
+    })
+  }
+
+  if (moodStats.averageRating >= 8) {
+    insights.push({
+      title: "Humor Excelente",
+      description: `Seu humor médio está em ${moodStats.averageRating}/10. Você está indo muito bem!`,
+      type: "success",
+    })
+  }
+
+  // Se não há insights, mostrar uma mensagem motivacional
+  if (insights.length === 0) {
+    insights.push({
+      title: "Bem-vindo ao Planly!",
+      description: "Comece adicionando alguns hábitos e registrando suas atividades para receber insights personalizados.",
+      type: "info",
+    })
+  }
 
   return (
     <div className="space-y-6 bg-white">
@@ -157,30 +242,50 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {todayHabits.map((habit, index) => (
-                <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
-                  <div className="flex items-center space-x-3">
-                    <div
-                      className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                        habit.completed ? "bg-green-500" : "bg-gray-300"
-                      }`}
-                    >
-                      {habit.completed && <CheckCircle className="h-3 w-3 text-white" />}
+              {todayHabits.length > 0 ? (
+                todayHabits.map((habit, index) => (
+                  <div key={habit.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                    <div className="flex items-center space-x-3">
+                      <div
+                        className={`w-5 h-5 rounded-full flex items-center justify-center cursor-pointer ${
+                          habit.completed ? "bg-green-500" : "bg-gray-300"
+                        }`}
+                        onClick={() => toggleHabit(habit.id)}
+                      >
+                        {habit.completed && <CheckCircle className="h-3 w-3 text-white" />}
+                      </div>
+                      <div>
+                        <p className={`font-medium ${habit.completed ? "text-gray-900" : "text-gray-600"}`}>
+                          {habit.name}
+                        </p>
+                        <p className="text-sm text-gray-500">{habit.time}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className={`font-medium ${habit.completed ? "text-gray-900" : "text-gray-600"}`}>
-                        {habit.name}
-                      </p>
-                      <p className="text-sm text-gray-500">{habit.time}</p>
-                    </div>
+                    {!habit.completed && (
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        className="text-gray-600 hover:text-gray-900"
+                        onClick={() => toggleHabit(habit.id)}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
-                  {!habit.completed && (
-                    <Button size="sm" variant="ghost" className="text-gray-600 hover:text-gray-900">
-                      <Plus className="h-4 w-4" onClick={() => toggleHabit(index)} />
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 mb-2">Nenhum hábito cadastrado</p>
+                  <p className="text-sm text-gray-400">Crie seus primeiros hábitos para começar!</p>
+                  <Link href="/dashboard/habits">
+                    <Button size="sm" className="mt-4">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Adicionar Hábito
                     </Button>
-                  )}
+                  </Link>
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>
@@ -193,19 +298,29 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {upcomingTasks.map((task, index) => (
-                <div key={index} className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50">
-                  <Clock className="h-4 w-4 text-gray-400" />
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900 text-sm">{task.title}</p>
-                    <p className="text-xs text-gray-500">{task.time}</p>
+              {taskStats.upcomingTasks.length > 0 ? (
+                taskStats.upcomingTasks.map((task, index) => (
+                  <div key={task.id} className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50">
+                    <Clock className="h-4 w-4 text-gray-400" />
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900 text-sm">{task.title}</p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(task.dueDate).toLocaleDateString('pt-BR')} às {new Date(task.dueDate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 mb-2">Nenhuma tarefa próxima</p>
+                  <p className="text-sm text-gray-400">Adicione tarefas para organizar seu dia</p>
                 </div>
-              ))}
-              <Link href="/dashboard/calendar">
+              )}
+              <Link href="/dashboard/tasks">
                 <Button variant="outline" size="sm" className="w-full mt-4 bg-white border-gray-300 text-gray-700 hover:bg-gray-50">
                   <Calendar className="mr-2 h-4 w-4" />
-                  Ver Agenda Completa
+                  {taskStats.upcomingTasks.length > 0 ? 'Ver Todas as Tarefas' : 'Adicionar Tarefa'}
                 </Button>
               </Link>
             </div>
@@ -228,14 +343,20 @@ export default function DashboardPage() {
               <div
                 key={index}
                 className={`p-4 rounded-lg border-l-4 ${
-                  insight.type === "success" ? "bg-green-50 border-green-500" : "bg-yellow-50 border-yellow-500"
+                  insight.type === "success" 
+                    ? "bg-green-50 border-green-500" 
+                    : insight.type === "warning"
+                    ? "bg-yellow-50 border-yellow-500"
+                    : "bg-blue-50 border-blue-500"
                 }`}
               >
                 <div className="flex items-start space-x-3">
                   {insight.type === "success" ? (
                     <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
-                  ) : (
+                  ) : insight.type === "warning" ? (
                     <AlertCircle className="h-5 w-5 text-yellow-500 mt-0.5" />
+                  ) : (
+                    <TrendingUp className="h-5 w-5 text-blue-500 mt-0.5" />
                   )}
                   <div>
                     <h4 className="font-medium text-gray-900">{insight.title}</h4>

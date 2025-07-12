@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Usuários podem ler/escrever apenas seus próprios dados
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Hábitos do usuário
+    match /habits/{userId}/userHabits/{habitId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Logs dos hábitos
+    match /habitLogs/{userId}/logs/{date} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Transações financeiras
+    match /finances/{userId}/transactions/{transactionId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Entradas de humor
+    match /moods/{userId}/entries/{entryId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Tarefas
+    match /tasks/{userId}/tasks/{taskId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Conquistas do usuário
+    match /achievements/{userId}/userAchievements/{achievementId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Negar acesso a qualquer outro documento
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
